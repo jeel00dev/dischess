@@ -1,0 +1,12 @@
+/build*/
+/data/*
+/models/*
+/runs/*
+!data/.gitkeep
+!models/.gitkeep
+!runs/.gitkeep
+*.part
+/streaming-test-*/
+/campaign-test-*/
+/scripts/.research_v2-*.sh
+/scripts/.research_v3-*.sh
