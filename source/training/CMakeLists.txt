@@ -54,7 +54,7 @@ dis_tool(dis-model      model.cpp      dis_trainer)
 if(DIS_BUILD_TESTS)
   # Original float checkpoint of the shipped network (weights.float + Adam moments),
   # used by test_format to prove format/initialisation/quantisation identity.
-  set(DIS_REFERENCE_MODEL_DIR "${CMAKE_SOURCE_DIR}/../../chess_engine_workspace/checkpoints/linear2048-epoch4"
+  set(DIS_REFERENCE_MODEL_DIR "${CMAKE_SOURCE_DIR}/../.workspace/checkpoints/linear2048-epoch4"
       CACHE PATH "directory holding the reference linear2048 checkpoint")
   enable_testing()
   function(dis_test name)

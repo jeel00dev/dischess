@@ -2,13 +2,13 @@ token: "xxxxxxxxxxxxxxxxxxxxxx"    # Lichess OAuth2 Token. Leave as is and expor
 url: "https://lichess.org/"        # Lichess base URL.
 
 engine:                            # Engine settings.
-  dir: "/home/jeel/Projects/chess_engine/engine/"                # Directory containing the engine. This can be an absolute path or one relative to lichess-bot/.
+  dir: "../../engine/"                        # Directory containing the engine. This can be an absolute path or one relative to lichess-bot/.
   name: "disengine"                 # Binary name of the engine to use.
   debug: False                     # When enabled, log all startup communication with the engine.
 # interpreter: "java"
 # interpreter_options:
 #   - "-jar"
-  working_dir: "/home/jeel/Projects/chess_engine/engine/"  # Agent folder (model.nnue is next to the executable). If blank or missing, the current directory is used.
+  working_dir: ""                  # Not needed: disengine loads model.nnue from its own folder. If blank or missing, the current directory is used.
                                    # NOTE: If working_dir is set, the engine will look for files and directories relative to this directory, not where lichess-bot was launched. Absolute paths are unaffected.
   protocol: "uci"                  # "uci", "xboard" or "homemade"
   ponder: false                    # DisEngine does not implement ponderhit.
@@ -169,10 +169,11 @@ challenge:                         # Incoming challenges.
 # online_block_list:               # The urls from which to retrieve a list of bot names that will not be challenged. The list should be a text file where each line contains the name of a blocked bot
 #   - example.com/blocklist
   # Competition rule: accept challenges only from the organisers' accounts, the
-  # competing bots and the chess-club members of the final stage. Replace the
-  # placeholder with their Lichess usernames before the competition.
-  allow_list:                      # List of users from which challenges are exclusively accepted, all others being declined. If empty, challenges from all users may be accepted.
-    - REPLACE-WITH-ORGANISER-ACCOUNT
+  # competing bots and the chess-club members of the final stage. List their
+  # Lichess usernames here. While the list is empty the bot accepts every
+  # challenger -- still only standard, casual, exactly 3+2 or 10+5 (see
+  # extra_game_handlers.py) -- so it can never decline a competition challenge.
+  allow_list: []                   # Empty = accept all users; non-empty = only these users.
 #   - user3
 #   - user4
 # recent_bot_challenge_age: 60     # Maximum age of a bot challenge to be considered recent in seconds

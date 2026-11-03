@@ -59,3 +59,25 @@ Vulkan SDK, and `glslc`).
 - Extensions and reductions: singular extensions (multi-cut, double and negative), internal iterative reduction, and late-move reductions with history, cut-node, improving and TT-PV adjustments. Re-searches can go deeper or shallower, and depth is adjusted in hindsight.
 - Move ordering and eval correction: killer moves, counter-moves, main, capture and continuation history, and pawn/non-pawn correction history.
 - Inference speed: an exact fast SCReLU dot product and an accumulator refresh cache.
+
+## Lichess bot
+
+`source/scripts/run_lichess_bot.sh` starts the bot. It uses `source/lichess/config.yml` and `source/lichess/extra_game_handlers.py`:
+
+- standard chess only, exactly 3+2 and 10+5, casual (unrated) only
+- automatic matchmaking disabled
+- `allow_list` holds the organisers' accounts, competing bots and club members of the final stage
+
+The lichess-bot program and its Python environment live in `.workspace/lichess-bot` inside this repository. That folder is git-ignored, so it is never submitted. The token comes from `LICHESS_BOT_TOKEN` and is never stored in the repository.
+
+## Declared sources
+
+- **Lazy SMP depth-skip tables.** The helper-thread `skip_size`/`skip_phase` tables in `source/engine/search.cpp` follow the schedule used by Stockfish 8–10 (GPL-3).
+- **lichess-bot hook template.** `source/lichess/extra_game_handlers.py` is adapted from the hook template in [lichess-bot](https://github.com/lichess-bot-devs/lichess-bot) (AGPL-3). `source/lichess/config.yml` is derived from lichess-bot's `config.yml.default`. lichess-bot itself is used unmodified to connect the agent to Lichess and is not part of the agent.
+- **Training and data methods.**
+  - [Texel's Tuning Method](https://www.chessprogramming.org/Texel%27s_Tuning_Method)
+  - quiet-position filtering from _Study of the Proper NNUE Dataset_ ([arXiv:2412.17948](https://arxiv.org/abs/2412.17948))
+  - NNUE/SCReLU/WDL-blending background from [chessprogramming.org/NNUE](https://www.chessprogramming.org/NNUE)
+- **Data.** [Lichess open database](https://database.lichess.org/) (CC0).
+- **Testing tools (not part of the agent).** [fastchess](https://github.com/Disservin/fastchess) (MIT) ran engine-vs-engine matches. [python-chess](https://github.com/niklasf/python-chess) (GPL-3) checks move legality in `source/scripts/uci_compliance.py`.
+- **AI assistance.** Parts of the training pipeline, the search improvements and the tooling were written with an AI coding assistant (Claude).
