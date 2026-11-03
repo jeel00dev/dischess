@@ -1,0 +1,53 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// One workgroup per position: build both accumulators (bias + bucketed rows +
+// factor rows), apply SCReLU, dot with the bucket's linear head, then compute
+// the loss and dL/dy for that position.
+layout(local_size_x = 256) in;
+#include "common.glsl"
+
+shared uint feats[64];
+shared float partial[256];
+
+void main() {
+    const uint b = gl_WorkGroupID.x, t = gl_LocalInvocationID.x, w = pc.width;
+    if (t < 64)
+        feats[t] = FEATS[b * 64 + t];
+    barrier();
+    const Pos p = POS[b];
+    float sum = 0.0;
+    for (uint v = 0; v < 2; ++v) {
+        const uint head_row = pc.direct_w + p.head * 2 * w + v * w;
+        for (uint j = t; j < w; j += 256) {
+            float a = W[pc.ft_bias + j];
+            for (uint i = 0; i < p.count; ++i) {
+                const uint f = feats[v * 32 + i];
+                a += W[f * w + j];
+                if (pc.factorized != 0)
+                    a += W[pc.factor + (f % pc.planes) * w + j];
+            }
+            ACC[(b * 2 + v) * w + j] = a;
+            const float c = clamp(a, 0.0, 1.0);
+            sum += c * c * W[head_row + j];
+        }
+    }
+    partial[t] = sum;
+    barrier();
+    for (uint s = 128; s > 0; s >>= 1) {
+        if (t < s)
+            partial[t] += partial[t + s];
+        barrier();
+    }
+    if (t == 0) {
+        const float y = partial[0] + W[pc.direct_b + p.head];
+        const float pred = pc.cp_scale * y + p.material;
+        const float sig = 1.0 / (1.0 + exp(-pred / pc.eval_scale));
+        const float diff = sig - p.target, ad = abs(diff);
+        const float loss = pow(ad, pc.power);
+        const float dl = ad > 0.0 ? pc.power * pow(ad, pc.power - 1.0) * sign(diff) : 0.0;
+        const float dpred = dl * sig * (1.0 - sig) / pc.eval_scale;
+        OUT[b] = dpred * pc.cp_scale * pc.inv_batch;
+        OUT[pc.batch + b] = loss;
+        OUT[2 * pc.batch + b] = pred;
+    }
+}

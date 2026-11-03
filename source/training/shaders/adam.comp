@@ -1,0 +1,21 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Dense Adam(W) over the whole parameter vector (incl. factor rows). Consumes
+// and clears the gradient so untouched rows read zero next step.
+layout(local_size_x = 256) in;
+#include "common.glsl"
+
+void main() {
+    for (uint i = gl_GlobalInvocationID.x; i < pc.count; i += gl_NumWorkGroups.x * 256) {
+        const float g = G[i];
+        G[i] = 0.0;
+        const float m = pc.beta1 * M1[i] + (1.0 - pc.beta1) * g;
+        const float v = pc.beta2 * M2[i] + (1.0 - pc.beta2) * g * g;
+        M1[i] = m;
+        M2[i] = v;
+        float w = W[i];
+        w -= pc.decay * w;
+        w -= pc.step * m / (sqrt(v) + pc.eps);
+        W[i] = clamp(w, -pc.clip, pc.clip);
+    }
+}

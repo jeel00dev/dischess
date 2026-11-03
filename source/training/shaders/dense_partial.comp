@@ -1,0 +1,40 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Gradients of the dense parameters (linear head weights, head bias and the
+// accumulator bias), accumulated over one chunk of positions per workgroup
+// row. reduce_dense.comp sums the chunks.
+// Partial layout per chunk: [heads=8][2][W] head weights | [W] ft bias | [8] head bias
+layout(local_size_x = 64) in;
+#include "common.glsl"
+
+void main() {
+    const uint j = gl_GlobalInvocationID.x, chunk = gl_WorkGroupID.y, w = pc.width;
+    if (j >= w)
+        return;
+    float gd[16];
+    float gdb[8];
+    for (int k = 0; k < 16; ++k) gd[k] = 0.0;
+    for (int k = 0; k < 8; ++k) gdb[k] = 0.0;
+    float gb = 0.0;
+    const uint b0 = chunk * pc.chunk_size, b1 = min(pc.batch, b0 + pc.chunk_size);
+    for (uint b = b0; b < b1; ++b) {
+        const float dy = OUT[b];
+        const uint h = POS[b].head;
+        for (uint v = 0; v < 2; ++v) {
+            const float a = ACC[(b * 2 + v) * w + j];
+            const float c = clamp(a, 0.0, 1.0);
+            gd[h * 2 + v] += dy * c * c;
+            if (a > 0.0 && a < 1.0)
+                gb += dy * W[pc.direct_w + h * 2 * w + v * w + j] * 2.0 * a;
+        }
+        gdb[h] += dy;
+    }
+    const uint stride = 17 * w + 8, base = chunk * stride;
+    for (uint h = 0; h < 8; ++h)
+        for (uint v = 0; v < 2; ++v)
+            SCRATCH[base + h * 2 * w + v * w + j] = gd[h * 2 + v];
+    SCRATCH[base + 16 * w + j] = gb;
+    if (j == 0)
+        for (uint h = 0; h < 8; ++h)
+            SCRATCH[base + 17 * w + h] = gdb[h];
+}

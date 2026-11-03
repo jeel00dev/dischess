@@ -1,0 +1,27 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Feature-transformer gradient. The CPU groups every (position, view) that
+// activates a given row into one segment (CSR), so each workgroup owns one
+// row and writes it without atomics: deterministic and race free.
+//   dL/dW[row][j] = sum_entries dy_b * head_w[h_b][v][j] * 2*acc*(0<acc<1)
+// Factor rows use the same kernel with segments keyed by (feature % 768).
+layout(local_size_x = 256) in;
+#include "common.glsl"
+
+void main() {
+    const uint seg = gl_WorkGroupID.x + gl_WorkGroupID.y * 32768;
+    if (seg >= pc.count)
+        return;
+    const uvec4 s = SEG[seg];
+    const uint w = pc.width;
+    for (uint j = gl_LocalInvocationID.x; j < w; j += 256) {
+        float g = 0.0;
+        for (uint e = s.y; e < s.z; ++e) {
+            const uint entry = ENTRIES[e], b = entry >> 1, v = entry & 1;
+            const float a = ACC[entry * w + j];
+            if (a > 0.0 && a < 1.0)
+                g += OUT[b] * W[pc.direct_w + POS[b].head * 2 * w + v * w + j] * 2.0 * a;
+        }
+        G[s.x + j] = g;
+    }
+}

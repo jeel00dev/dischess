@@ -10,3 +10,6 @@
 /campaign-test-*/
 /scripts/.research_v2-*.sh
 /scripts/.research_v3-*.sh
+__pycache__/
+*.pyc
+*.tmp
